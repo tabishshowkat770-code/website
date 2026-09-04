@@ -138,10 +138,22 @@ def export_csv(tasks):
 
 
 def export_excel(tasks):
-	# requires pandas + openpyxl
+	# requires pandas and an Excel engine (openpyxl or xlsxwriter)
+	if not PANDAS_AVAILABLE:
+		return None
 	df = pd.DataFrame(tasks)
 	bio = io.BytesIO()
-	with pd.ExcelWriter(bio, engine="openpyxl") as writer:
+	engine = None
+	try:
+		import openpyxl  # noqa: F401
+		engine = "openpyxl"
+	except Exception:
+		try:
+			import xlsxwriter  # noqa: F401
+			engine = "xlsxwriter"
+		except Exception:
+			return None
+	with pd.ExcelWriter(bio, engine=engine) as writer:
 		df.to_excel(writer, index=False, sheet_name="tasks")
 	bio.seek(0)
 	return bio.read()
@@ -283,7 +295,10 @@ def main():
 		if PANDAS_AVAILABLE:
 			if st.button("Download Excel (.xlsx)"):
 				data = export_excel(tasks)
-				st.download_button("Click to download .xlsx", data, file_name="tasks.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+				if data is None:
+					st.error("Excel export requires openpyxl or xlsxwriter. Install with: pip install openpyxl or pip install xlsxwriter")
+				else:
+					st.download_button("Click to download .xlsx", data, file_name="tasks.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 		csv_data = export_csv(tasks)
 		st.download_button("Download CSV", csv_data, file_name="tasks.csv", mime="text/csv")
 
